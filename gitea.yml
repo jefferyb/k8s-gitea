@@ -98,16 +98,20 @@ spec:
 # Ingress is always suitable for HTTP usage,
 # we suggest using an proxy layer such as slb to send traffic to different ports.
 # Usually 80/443 for web and 22 directly for SSH.
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: gitea
   namespace: gitea
 spec:
   rules:
-  - host: your-gitea-host.com
-    http:
-      paths:
-      - backend:
-          serviceName: gitea-web
-          servicePort: 80
+    - host: your-gitea-host.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea-web
+                port:
+                  number: 80
