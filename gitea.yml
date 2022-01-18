@@ -4,10 +4,35 @@
 #   https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/
 #
 ####### </ Jeffery Bagirimvano >
+
+###################################################
+# Namespace Gitea
+###################################################
 apiVersion: v1
 kind: Namespace
 metadata:
   name: gitea
+
+---
+###############################
+# Gitea PVC
+###############################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: microk8s-hostpath
+  resources:
+    requests:
+      storage: 5Gi
+
+###############################
+# Deplyoment Gitea
+###############################
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -18,62 +43,48 @@ metadata:
     app: gitea
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: gitea
   template:
     metadata:
-      name: gitea
       labels:
         app: gitea
     spec:
       containers:
-      - name: gitea
-        image: gitea/gitea:latest
-        imagePullPolicy: Always
-        volumeMounts:
-          - mountPath: "/var/lib/gitea"
-            name: "root"
-          - mountPath: "/data"
-            name: "data"
-        ports:
-          - containerPort: 22
-            name: ssh
-            protocol: TCP
-          - containerPort: 3000
-            name: http
-            protocol: TCP
-      restartPolicy: Always
+        - name: gitea
+          image: gitea/gitea:latest
+          imagePullPolicy: Always
+          ports:
+            - name: gitea
+              containerPort: 3000
+            - name: gitea-ssh
+              containerPort: 22
+          volumeMounts:
+            - name: gitea-data
+              mountPath: /data  
       volumes:
-        # Set up a data directory for gitea
-        # For production usage, you should consider using PV/PVC instead(or simply using storage like NAS)
-        # For more details, please see https://kubernetes.io/docs/concepts/storage/volumes/
-      - name: "root"
-        hostPath:
-          # directory location on host
-          path: "/var/lib/gitea"
-          # this field is optional
-          type: Directory
-      - name: "data"
-        hostPath:
-          path: "/data/gitea"
-          type: Directory
-  selector:
-    matchLabels:
-      app: gitea
+        - name: gitea-data
+          persistentVolumeClaim:
+            claimName: gitea-pvc
+
 ---
-# Using cluster mode
+###############################
+# Service
+###############################
 apiVersion: v1
 kind: Service
 metadata:
-  name: gitea-web
+  name: gitea-service
   namespace: gitea
-  labels:
-    app: gitea-web
 spec:
-  ports:
-  - port: 80
-    targetPort: 3000
-    name: http
   selector:
     app: gitea
+  ports:
+    - name: gitea-http
+      port: 3000
+      targetPort: 3000
+
 ---
 # Using node-port mode
 # This mainly open a specific TCP port for SSH usage on each host,
@@ -86,24 +97,32 @@ metadata:
   labels:
     app: gitea-ssh
 spec:
-  ports:
-  - port: 22
-    targetPort: 22
-    nodePort: 30022
-    name: ssh
   selector:
     app: gitea
+  ports:
+    - name: gitea-ssh
+      port: 22
+      targetPort: 22
+      nodePort: 30022
   type: NodePort
+
 ---
-# Ingress is always suitable for HTTP usage,
-# we suggest using an proxy layer such as slb to send traffic to different ports.
-# Usually 80/443 for web and 22 directly for SSH.
-apiVersion: networking.k8s.io/v1
+###################################################
+# Ingress
+###################################################
 kind: Ingress
+apiVersion: networking.k8s.io/v1
 metadata:
   name: gitea
   namespace: gitea
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: /$1
+  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
+  # tls:
+  #   - hosts:
+  #     - your-gitea-host.com
+  #     secretName: gitea-tls
   rules:
     - host: your-gitea-host.com
       http:
@@ -112,6 +131,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: gitea-web
+                name: gitea-service
                 port:
-                  number: 80
+                  number: 3000
