@@ -1,0 +1,28 @@
+---
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: gitea
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: /$1
+  #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  #   ingress.annotations.nginx.ingress.kubernetes.io/proxy-body-size=1g
+  labels:
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: gitea
+spec:
+  # tls:
+  #   - hosts:
+  #     - your-gitea-host.com
+  #     secretName: gitea-tls
+  rules:
+    - host: your-gitea-host.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea-http
+                port:
+                  number: 3000

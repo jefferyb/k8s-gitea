@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  labels:
+    app.kubernetes.io/name: gitea
+    app.kubernetes.io/instance: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitea
+      app.kubernetes.io/instance: gitea
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitea
+        app.kubernetes.io/instance: gitea
+    spec:
+      containers:
+        - name: gitea
+          image: gitea/gitea:latest
+          imagePullPolicy: Always
+          ports:
+            - name: gitea-http
+              containerPort: 3000
+            - name: gitea-ssh
+              containerPort: 22
+          volumeMounts:
+            - name: gitea-data
+              mountPath: /data  
+      volumes:
+        - name: gitea-data
+          persistentVolumeClaim:
+            claimName: gitea-pvc
