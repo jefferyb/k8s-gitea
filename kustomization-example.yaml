@@ -1,0 +1,60 @@
+---
+# kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - github.com/jefferyb/k8s-gitea/base
+
+configMapGenerator:
+  - name: gitea-config
+    files:
+      - app.ini=gitea-app.ini
+
+patches:
+### Update ingress
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: gitea
+        annotations:
+          cert-manager.io/cluster-issuer: lets-encrypt
+          nginx.ingress.kubernetes.io/proxy-body-size: 3g
+      spec:
+        ingressClassName: {{ ingress_class_name }} # <<<--- NEEDS UPDATING
+        rules:
+          - host: {{ base_name }}.{{ base_domain }} # <<<--- NEEDS UPDATING
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gitea
+                      port:
+                        name: gitea-http
+        tls:
+          - hosts:
+            - {{ base_name }}.{{ base_domain }} # <<<--- NEEDS UPDATING
+            secretName: {{ base_name }}-ingress-tls # <<<--- NEEDS UPDATING
+
+### Add app.ini as a configM
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: gitea
+      spec:
+        template:
+          spec:
+            containers:
+            - name: gitea
+              volumeMounts:
+                - name: gitea-config-cm
+                  subPath: app.ini
+                  mountPath: /data/gitea/conf/app.ini
+            volumes:
+              - name: gitea-config-cm
+                configMap:
+                  name: gitea-config

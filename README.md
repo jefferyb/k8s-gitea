@@ -1,55 +1,37 @@
 # Gitea on Kubernetes
 
-Install Gitea on Kubernetes using [kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/), or just copy `gitea.yml` and edit it before applying it
+Install Gitea on Kubernetes using [kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/), or just edit the files in `base/` before applying them.
 
 # Deploy Gitea with kustomize | example
 
-Create a `kustomization.yaml` and a `ingress-patch.yaml` file
+Create a `kustomization.yaml` and a `gitea-app.ini` file
 
 ```bash
 # Create a kustomization.yaml file
-cat <<EOF >./kustomization.yaml
-namespace: gitea
+cp kustomization-example.yaml kustomization.yaml
 
-bases:
-  - https://github.com/jefferyb/k8s-gitea.git?ref=v1.0.0
-
-commonLabels:
-  app: gitea
-  env: production
-
-patchesJson6902:
-  - path: ingress-patch.yaml
-    target:
-      group: extensions
-      version: v1beta1
-      kind: Ingress
-      name: gitea
-EOF
-
-# Create a ingress-patch.yaml file
-cat <<EOF >./ingress-patch.yaml
-- op: replace
-  path: /spec/rules/0/host
-  value: gitea.192.168.1.37.nip.io
-EOF
-
+# Create a gitea-app.ini file
+cp gitea-app-example.ini gitea-app.ini
 ```
+
+Edit/Update `kustomization.yaml` and `gitea-app.ini`
 
 To view the Deployment, run:
 
 ```bash
-kubectl kustomize ./
+kustomize build .
+# OR 
+kubectl kustomize .
 ```
 
 To apply/deploy, run:
 
 ```bash
-kubectl kustomize ./ | kubectl apply -f -
+kubectl kustomize . | kubectl apply -f -
 #  OR
-kubectl apply --kustomize ./
+kubectl apply --kustomize .
 ```
 
 ref: 
-  * https://github.com/go-gitea/gitea/blob/v1.13.0-dev/contrib/k8s/gitea.yml
+  * https://docs.gitea.com/administration/config-cheat-sheet
   * https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/
